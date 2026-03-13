@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TravelMind Cúcuta — Mapa Inteligente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --gold:#C9A84C;--gold2:#E8C97A;--dark:#0C0C0C;--panel:#131313;
+  --card:#1A1A1A;--card2:#202020;--border:#252525;--text:#EDE9E0;
+  --muted:#666;--green:#4CAF76;--red:#D05C72;--blue:#5B9BD5;
+  --purple:#9B6DD5;--orange:#D58B3A;--teal:#3ABFBF;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── HEADER ── */
+header{
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:9px 18px;display:flex;align-items:center;gap:14px;
+  flex-shrink:0;z-index:1000;flex-wrap:wrap;
+}
+.logo{font-family:'Playfair Display',serif;font-size:19px;font-weight:900;color:var(--gold);white-space:nowrap}
+.logo em{color:var(--text);font-style:normal;font-weight:400}
+.logo small{font-size:9px;color:var(--muted);display:block;letter-spacing:2px;text-transform:uppercase;font-family:'DM Sans',sans-serif;margin-top:-2px}
+.hsep{width:1px;height:30px;background:var(--border);flex-shrink:0}
+.ctrl{display:flex;flex-direction:column;gap:2px}
+.clabel{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+select{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;outline:none;min-width:125px}
+select:focus{border-color:var(--gold)}
+.bwrap{display:flex;align-items:center;gap:7px}
+input[type=range]{-webkit-appearance:none;width:90px;height:3px;background:linear-gradient(90deg,var(--gold) var(--pct,100%),var(--border) var(--pct,100%));border-radius:3px;cursor:pointer;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--gold);border:2px solid var(--dark)}
+.bval{font-size:11px;color:var(--gold);font-weight:600;min-width:65px}
+.user-pill{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);padding:5px 12px;border-radius:30px;cursor:pointer;transition:border-color .2s}
+.user-pill:hover{border-color:var(--gold)}
+.ua{width:25px;height:25px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--dark);flex-shrink:0}
+.un{font-size:11px;font-weight:600}.ur{font-size:9px;color:var(--muted)}
+.hbtn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap;font-weight:500}
+.hbtn:hover{background:var(--gold);color:var(--dark);border-color:var(--gold)}
+.hbtn.active{background:var(--gold);color:var(--dark);border-color:var(--gold)}
+
+/* ── BODY LAYOUT ── */
+.body{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:285px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .3s}
+.sidebar.collapsed{width:0}
+.sb-inner{width:285px;display:flex;flex-direction:column;height:100%;overflow:hidden}
+.sbhead{padding:13px 16px 9px;border-bottom:1px solid var(--border)}
+.sbtitle{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--gold)}
+.sbsub{font-size:10px;color:var(--muted);margin-top:2px}
+.sbstat{display:flex;gap:10px;margin-top:8px}
+.stat-box{flex:1;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:5px 8px;text-align:center}
+.stat-n{font-size:16px;font-weight:700;color:var(--gold)}
+.stat-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+
+/* Search */
+.sb-search{padding:8px 12px;border-bottom:1px solid var(--border)}
+.search-inp{width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px 6px 30px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;transition:border-color .2s}
+.search-inp:focus{border-color:var(--gold)}
+.search-wrap{position:relative}
+.search-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none}
+
+/* Category filters */
+.cats{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px}
+.cat{padding:3px 8px;border-radius:20px;font-size:10px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.cat.on,.cat:hover{background:var(--gold);color:var(--dark);border-color:var(--gold);font-weight:600}
+
+/* Sort bar */
+.sortbar{padding:5px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
+.sortbtn{background:transparent;border:none;color:var(--muted);font-size:10px;font-family:'DM Sans',sans-serif;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all .15s}
+.sortbtn.on{color:var(--gold);font-weight:600}
+.sortbtn:hover{color:var(--text)}
+
+/* Place list */
+.plist{flex:1;overflow-y:auto;padding:4px 0}
+.plist::-webkit-scrollbar{width:3px}
+.plist::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.pitem{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;display:flex;gap:10px;align-items:flex-start;border-left:3px solid transparent}
+.pitem:hover{background:var(--card)}
+.pitem.sel{background:var(--card);border-left-color:var(--gold)}
+.pitem.dim{opacity:.28;pointer-events:none}
+.pitem.visited .pi-ico::after{content:'✓';position:absolute;bottom:-2px;right:-2px;background:var(--green);color:#fff;font-size:8px;width:12px;height:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700}
+.pi-ico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;position:relative}
+.pi-info{flex:1;min-width:0}
+.pi-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi-type{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:1px}
+.pi-tags{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.tag{font-size:9px;padding:1px 6px;border-radius:10px;background:var(--dark);border:1px solid var(--border);color:var(--muted)}
+.tag.lo{color:var(--green);border-color:var(--green)}.tag.mi{color:var(--gold);border-color:var(--gold)}.tag.hi{color:var(--red);border-color:var(--red)}
+.tag.new{color:var(--teal);border-color:var(--teal)}
+
+/* Visited progress */
+.vis-bar{padding:8px 12px;border-top:1px solid var(--border)}
+.vis-label{font-size:10px;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between}
+.vis-label span{color:var(--gold);font-weight:600}
+.vis-track{height:3px;background:var(--border);border-radius:3px;overflow:hidden}
+.vis-fill{height:100%;background:var(--gold);border-radius:3px;transition:width .4s}
+
+/* ── MAP ── */
+.map-wrap{flex:1;position:relative;min-width:0}
+#map{width:100%;height:100%}
+.leaflet-tile-pane{filter:brightness(.68) saturate(.4) hue-rotate(190deg) invert(1)}
+.leaflet-popup-content-wrapper{background:var(--card)!important;border:1px solid var(--gold)!important;border-radius:12px!important;box-shadow:0 10px 35px rgba(0,0,0,.8)!important;color:var(--text)!important;padding:0!important}
+.leaflet-popup-content{margin:0!important;min-width:240px;max-width:300px}
+.leaflet-popup-tip{background:var(--card)!important;border:1px solid var(--gold)}
+.leaflet-popup-close-button{color:var(--muted)!important;top:8px!important;right:10px!important;font-size:16px!important}
+.leaflet-popup-close-button:hover{color:var(--text)!important}
+
+/* Popup */
+.pop{padding:16px}
+.pop-badges{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.pop-badge{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:600;letter-spacing:.5px}
+.pop-name{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--gold);line-height:1.2;padding-right:16px;margin-bottom:3px}
+.pop-addr{font-size:10px;color:var(--muted);margin-bottom:8px}
+.pop-desc{font-size:12px;color:#BBB;line-height:1.65;margin-bottom:10px}
+.pop-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:10px}
+.pop-cell{background:var(--card);padding:6px 9px}
+.pop-cell-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:1px}
+.pop-cell-v{font-size:11px;color:var(--text);font-weight:500}
+.pop-cost{padding:6px 10px;border-radius:7px;font-size:12px;font-weight:600;text-align:center;margin-bottom:8px}
+.pop-cost.lo{background:rgba(76,175,118,.12);color:var(--green)}.pop-cost.mi{background:rgba(201,168,76,.12);color:var(--gold)}.pop-cost.hi{background:rgba(208,92,114,.12);color:var(--red)}
+.pop-actions{display:flex;gap:6px}
+.pop-btn{flex:1;padding:7px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;font-weight:500}
+.pop-btn:hover{background:var(--gold);color:var(--dark);border-color:var(--gold)}
+.pop-btn.vis-btn.done{background:var(--green);color:#fff;border-color:var(--green)}
+.pop-reviews{margin-top:10px;border-top:1px solid var(--border);padding-top:8px}
+.rev-title{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px}
+.rev-item{font-size:11px;color:#999;line-height:1.5;margin-bottom:5px;padding-left:8px;border-left:2px solid var(--border);font-style:italic}
+
+/* Overlays */
+.ov{position:absolute;z-index:800;background:rgba(13,13,13,.92);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:10px;padding:10px 13px}
+.ov-t{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:7px}
+.legend{top:12px;right:12px;min-width:130px}
+.leg-row{display:flex;align-items:center;gap:6px;font-size:11px;margin-top:3px}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pers-ov{bottom:54px;left:12px}
+.pr{font-size:11px;color:var(--muted);margin-top:2px}.pr span{color:var(--gold);font-weight:500}
+
+/* Tour bar */
+.tour-bar{position:absolute;top:12px;left:12px;z-index:800;display:flex;gap:6px;align-items:center;max-width:240px;display:none}
+.tour-bar.visible{display:flex}
+.tour-info{background:rgba(13,13,13,.92);backdrop-filter:blur(8px);border:1px solid var(--gold);border-radius:8px;padding:7px 11px;flex:1}
+.tour-num{font-size:9px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.tour-name{font-size:12px;font-weight:500;margin-top:1px}
+.tour-btn{background:var(--gold);border:none;color:var(--dark);width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:16px;font-weight:700;flex-shrink:0;transition:background .15s}
+.tour-btn:hover{background:var(--gold2)}
+
+/* Answers btn */
+.ans-btn{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:900;background:var(--gold);color:var(--dark);border:none;border-radius:30px;padding:9px 20px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;letter-spacing:.4px;cursor:pointer;box-shadow:0 4px 18px rgba(201,168,76,.35);transition:all .2s;white-space:nowrap}
+.ans-btn:hover{background:var(--gold2);box-shadow:0 6px 22px rgba(201,168,76,.5)}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:2000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;width:92%;max-width:720px;max-height:88vh;overflow-y:auto;padding:26px 28px}
+.modal::-webkit-scrollbar{width:3px}.modal::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.modal-close{float:right;width:28px;height:28px;border-radius:50%;background:var(--card);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.modal-close:hover{background:var(--red);border-color:var(--red)}
+.modal-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--gold);margin-bottom:20px;clear:both;padding-top:4px}
+.q{margin-bottom:18px}.q-num{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:4px}
+.q-text{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;margin-bottom:7px}
+.q-ans{font-size:12px;color:#BBB;line-height:1.75;padding-left:12px;border-left:2px solid var(--border)}
+.q-ans ul{padding-left:14px;margin-top:4px}.q-ans li{margin-top:3px}
+hr.div{border:none;border-top:1px solid var(--border);margin:16px 0}
+.persona-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px 16px;margin-bottom:16px}
+.pf b{font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:1px}
+.pf{font-size:12px;color:#CCC}
+.ptable{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+.ptable th{text-align:left;padding:7px 10px;background:var(--dark);color:var(--gold);font-size:9px;text-transform:uppercase;letter-spacing:1px}
+.ptable td{padding:7px 10px;border-bottom:1px solid var(--border);color:#CCC;vertical-align:top}
+.ptable tr:last-child td{border-bottom:none}
+.places-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.pg-item{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:11px}
+.pg-item b{color:var(--gold);display:block;font-size:12px;margin-bottom:3px}
+.pg-item span{color:var(--muted);font-size:10px}
+
+/* Toast */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-8px);background:var(--gold);color:var(--dark);padding:7px 18px;border-radius:30px;font-size:12px;font-weight:600;opacity:0;transition:all .25s;z-index:3000;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header>
+  <div class="logo">Travel<em>Mind</em><small>Cúcuta · Norte de Santander</small></div>
+  <div class="hsep"></div>
+
+  <div class="ctrl">
+    <div class="clabel">Tipo de usuario</div>
+    <select id="selUser" onchange="personalize()">
+      <option value="tourist">🌍 Turista Internacional</option>
+      <option value="student">📚 Estudiante</option>
+      <option value="elder">👴 Adulto Mayor</option>
+      <option value="family">👨‍👩‍👧 Familia</option>
+      <option value="citizen">🏙️ Ciudadano Local</option>
+    </select>
+  </div>
+
+  <div class="ctrl">
+    <div class="clabel">Idioma</div>
+    <select id="selLang" onchange="personalize()">
+      <option value="es">🇨🇴 Español</option>
+      <option value="en">🇺🇸 English</option>
+      <option value="fr">🇫🇷 Français</option>
+    </select>
+  </div>
+
+  <div class="ctrl">
+    <div class="clabel">Presupuesto</div>
+    <div class="bwrap">
+      <input type="range" id="slBudget" min="0" max="100" value="100" oninput="onBudget(this.value)" style="--pct:100%">
+      <span class="bval" id="bval">Sin límite</span>
+    </div>
+  </div>
+
+  <button class="hbtn" id="tourBtn" onclick="toggleTour()">🗺️ Tour Guiado</button>
+  <button class="hbtn" onclick="document.getElementById('modal').classList.add('open')">📋 Respuestas</button>
+
+  <div class="user-pill" onclick="document.getElementById('modal').classList.add('open')">
+    <div class="ua" id="ua">A</div>
+    <div><div class="un" id="un">Ana García</div><div class="ur" id="ur">Turista · 28 años</div></div>
+  </div>
+</header>
+
+<!-- ══════════════ BODY ══════════════ -->
+<div class="body">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-inner">
+      <div class="sbhead">
+        <div class="sbtitle">Lugares de Interés</div>
+        <div class="sbsub" id="sbsub">Cúcuta, Norte de Santander</div>
+        <div class="sbstat">
+          <div class="stat-box"><div class="stat-n" id="visibleCount">12</div><div class="stat-l">visibles</div></div>
+          <div class="stat-box"><div class="stat-n" id="visitedCount">0</div><div class="stat-l">visitados</div></div>
+          <div class="stat-box"><div class="stat-n" id="totalCount">12</div><div class="stat-l">total</div></div>
+        </div>
+      </div>
+
+      <div class="sb-search">
+        <div class="search-wrap">
+          <span class="search-ico">🔍</span>
+          <input class="search-inp" type="text" id="searchInp" placeholder="Buscar lugar..." oninput="doSearch(this.value)">
+        </div>
+      </div>
+
+      <div class="cats" id="cats"></div>
+
+      <div class="sortbar">
+        <span>Ordenar:</span>
+        <button class="sortbtn on" id="sort-priority" onclick="setSort('priority')">Relevancia</button>
+        <button class="sortbtn" id="sort-rating" onclick="setSort('rating')">Calificación</button>
+        <button class="sortbtn" id="sort-cost" onclick="setSort('cost')">Costo</button>
+      </div>
+
+      <div class="plist" id="plist"></div>
+
+      <div class="vis-bar">
+        <div class="vis-label"><span>Progreso del recorrido</span><span id="visPct">0%</span></div>
+        <div class="vis-track"><div class="vis-fill" id="visFill" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <!-- Tour bar -->
+    <div class="tour-bar" id="tourBar">
+      <div class="tour-info">
+        <div class="tour-num" id="tourNum">Parada 1 / 5</div>
+        <div class="tour-name" id="tourName">Catedral de Cúcuta</div>
+      </div>
+      <button class="tour-btn" onclick="tourNext()">›</button>
+    </div>
+
+    <!-- Legend -->
+    <div class="ov legend">
+      <div class="ov-t">Categorías</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#C9A84C"></div>Sitio turístico</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4CAF76"></div>Parque</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#5B9BD5"></div>Restaurante</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#D05C72"></div>Hospital / Clínica</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#9B6DD5"></div>Biblioteca / Universidad</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#D58B3A"></div>Supermercado / Mall</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#3ABFBF"></div>Colegio</div>
+    </div>
+
+    <!-- Personalization overlay -->
+    <div class="ov pers-ov" id="persOv">
+      <div class="ov-t">Personalización activa</div>
+      <div class="pr">👤 <span id="pU">Ana García (Turista)</span></div>
+      <div class="pr">🌐 <span id="pL">Español</span></div>
+      <div class="pr">💰 <span id="pB">Sin límite</span></div>
+    </div>
+
+    <button class="ans-btn" onclick="document.getElementById('modal').classList.add('open')">📋 Ver Respuestas del Proyecto</button>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL ══════════════ -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">✕</button>
+    <div class="modal-title">📋 Documentación del Proyecto Integrador</div>
+
+    <!-- PERFIL -->
+    <div class="q">
+      <div class="q-num">Perfil de usuario definido</div>
+      <div class="q-text">Tipo de usuario principal de la aplicación</div>
+      <div class="persona-grid">
+        <div class="pf"><b>Nombre</b>Ana García</div>
+        <div class="pf"><b>Edad</b>28 años</div>
+        <div class="pf"><b>Rol</b>Turista Internacional</div>
+        <div class="pf"><b>Nivel Tecnológico</b>Medio-Alto (smartphone, apps de mapas)</div>
+        <div class="pf" style="grid-column:1/-1"><b>Necesidad Principal</b>Descubrir y planificar visitas a lugares de interés en Cúcuta, conocer costos, horarios y recomendaciones adaptadas a su perfil, sin necesidad de internet permanente</div>
+      </div>
+      <div class="q-ans" style="margin-top:8px">
+        La aplicación también soporta perfiles adicionales: <b>Estudiante</b> (prioriza colegios, universidades y biblioteca), <b>Adulto Mayor</b> (prioriza hospitales, parques accesibles y servicios), <b>Familia</b> (parques, entretenimiento y restaurantes) y <b>Ciudadano Local</b> (supermercados, servicios y shortcuts).
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <!-- LUGARES -->
+    <div class="q">
+      <div class="q-num">Lugares seleccionados — 12 puntos con coordenadas reales</div>
+      <div class="q-text">Datos estructurados verificados vía Google Places API</div>
+      <div class="places-grid">
+        <div class="pg-item"><b>🌿 Parque Nacional Cúcuta</b><span>Parque · 7.8884°N, 72.5025°W · Gratuito</span></div>
+        <div class="pg-item"><b>🏛️ Catedral de Cúcuta</b><span>Sitio · 7.8863°N, 72.5036°W · Gratuito</span></div>
+        <div class="pg-item"><b>🍽️ Rancho y Leña</b><span>Restaurante · 7.8956°N, 72.4862°W · Medio</span></div>
+        <div class="pg-item"><b>🏥 Hospital Erasmo Meoz</b><span>Hospital · 7.9039°N, 72.4910°W · Público</span></div>
+        <div class="pg-item"><b>📚 Biblioteca Julio Pérez Ferrero</b><span>Biblioteca · 7.8851°N, 72.4995°W · Gratuito</span></div>
+        <div class="pg-item"><b>🛒 Éxito Av. Quinta</b><span>Supermercado · 7.8850°N, 72.5036°W · Variable</span></div>
+        <div class="pg-item"><b>🏙️ Ventura Plaza</b><span>Mall · 7.8885°N, 72.4966°W · Variable</span></div>
+        <div class="pg-item"><b>🌊 Malecón del Pamplonita</b><span>Sitio · 7.8858°N, 72.4899°W · Gratuito</span></div>
+        <div class="pg-item"><b>🎭 Circus Pop</b><span>Entretenimiento · 7.8905°N, 72.4883°W · Bajo</span></div>
+        <div class="pg-item"><b>🎡 Iguana Park</b><span>Parque Diversiones · 7.8642°N, 72.5006°W · Bajo</span></div>
+        <div class="pg-item"><b>🎓 Colegio San José</b><span>Colegio · 7.8835°N, 72.5038°W · N/A</span></div>
+        <div class="pg-item"><b>🏫 Universidad de Santander</b><span>Universidad · 7.9110°N, 72.4993°W · Variable</span></div>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <!-- PERSONALIZACIÓN -->
+    <div class="q">
+      <div class="q-num">Variables de personalización</div>
+      <div class="q-text">3 variables que modifican dinámicamente la interfaz</div>
+      <div class="q-ans">
+        <table class="ptable">
+          <tr><th>Variable</th><th>Valores</th><th>Cambio en interfaz</th></tr>
+          <tr>
+            <td><b>Tipo de usuario</b></td>
+            <td>Turista, Estudiante, Adulto Mayor, Familia, Ciudadano</td>
+            <td>Reordena la lista por prioridad de perfil. Cambia descripciones, recomendaciones y el perfil visible. Los marcadores prioritarios brillan más en el mapa.</td>
+          </tr>
+          <tr>
+            <td><b>Idioma preferido</b></td>
+            <td>Español, English, Français</td>
+            <td>Todos los textos de popups, etiquetas de categorías, descripciones y mensajes del sistema se actualizan al idioma seleccionado en tiempo real.</td>
+          </tr>
+          <tr>
+            <td><b>Presupuesto máximo</b></td>
+            <td>Slider continuo 0–100 (escala de costo)</td>
+            <td>Los marcadores con costo superior al tope desaparecen del mapa y los ítems de la lista se atenúan. El overlay de personalización actualiza el valor en tiempo real.</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <!-- Q1 -->
+    <div class="q">
+      <div class="q-num">Pregunta 1</div>
+      <div class="q-text">¿Qué datos necesita el sistema para funcionar?</div>
+      <div class="q-ans">
+        El sistema requiere tres capas de datos:<br><br>
+        <ul>
+          <li><b>Datos de lugares:</b> nombre, tipo/categoría, latitud y longitud reales, descripción multiidioma, costo estimado, horarios de atención, calificación promedio, dirección y reseñas representativas.</li>
+          <li><b>Datos del usuario:</b> tipo de perfil (turista, estudiante, etc.), idioma preferido, rango de presupuesto, historial de lugares visitados y preferencias de interés.</li>
+          <li><b>Datos geoespaciales:</b> tiles de mapa base (OpenStreetMap), coordenadas GPS verificadas, y contexto territorial para proyectar los marcadores con precisión.</li>
+        </ul>
+        <br>En este prototipo los datos de lugares se almacenan como <b>JSON local</b> dentro del HTML, eliminando la dependencia de servidores externos y permitiendo uso offline.
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="q">
+      <div class="q-num">Pregunta 2</div>
+      <div class="q-text">¿Dónde se podrían almacenar esos datos?</div>
+      <div class="q-ans">
+        <ul>
+          <li><b>Prototipo local (actual):</b> JSON embebido en HTML — sin backend, funciona completamente offline.</li>
+          <li><b>Base de datos relacional:</b> PostgreSQL + extensión PostGIS para consultas espaciales eficientes (radio, polígonos, rutas más cercanas).</li>
+          <li><b>Base de datos NoSQL:</b> Firebase Firestore o MongoDB Atlas para esquemas flexibles, sincronización en tiempo real y escalabilidad.</li>
+          <li><b>APIs externas:</b> Google Places API u OpenStreetMap/Overpass API para datos enriquecidos y actualizados automáticamente en producción.</li>
+          <li><b>Perfil de usuario:</b> LocalStorage (sesión local) para prototipos, o JWT + backend autenticado para persistencia segura entre dispositivos.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="q">
+      <div class="q-num">Pregunta 3</div>
+      <div class="q-text">¿Cómo ayudaría la IA o el análisis de datos a mejorar esta aplicación?</div>
+      <div class="q-ans">
+        <ul>
+          <li><b>Recomendación personalizada:</b> Modelos de filtrado colaborativo que aprenden del historial de visitas y preferencias de perfiles similares para sugerir lugares relevantes de forma automática.</li>
+          <li><b>Itinerarios inteligentes:</b> Algoritmos de optimización de ruta (TSP/greedy) que generen recorridos según tiempo disponible, presupuesto y tipo de experiencia deseada.</li>
+          <li><b>Análisis de sentimiento:</b> NLP sobre reseñas de Google Maps para generar calificaciones dinámicas y alertas tempranas de deterioro en la calidad del servicio.</li>
+          <li><b>Predicción de afluencia:</b> Modelos de series de tiempo que indiquen qué tan concurrido estará un lugar según hora, día y temporada, ayudando al usuario a planificar mejor.</li>
+          <li><b>Búsqueda semántica:</b> LLMs integrados que interpreten consultas en lenguaje natural: "¿dónde puedo almorzar económico con niños hoy cerca del malecón?"</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="q">
+      <div class="q-num">Pregunta 4</div>
+      <div class="q-text">¿Qué riesgo de privacidad podría existir?</div>
+      <div class="q-ans">
+        <ul>
+          <li><b>Geolocalización sin consentimiento:</b> Acceder a la posición GPS del usuario sin opt-in explícito viola la Ley 1581/2012 de Colombia (habeas data) y normativas internacionales como el GDPR.</li>
+          <li><b>Construcción de perfil sensible:</b> Combinar edad, rol, historial de rutas y lugares visitados permite inferir condición médica, creencias religiosas, hábitos o situación económica del usuario.</li>
+          <li><b>Transmisión a terceros:</b> El uso de tiles de OpenStreetMap o APIs de Google implica enviar metadatos de navegación a esos proveedores, quienes tienen sus propias políticas de uso de datos.</li>
+          <li><b>Almacenamiento inseguro:</b> Guardar preferencias y ubicaciones en LocalStorage sin cifrado las expone a scripts maliciosos mediante ataques XSS.</li>
+          <li><b>Mitigación recomendada:</b> Anonimización de datos, consentimiento informado granular, cifrado en tránsito (HTTPS/TLS), política de retención mínima y opción de borrado completo del perfil.</li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="div">
+    <div style="font-size:11px;color:var(--muted);text-align:center">
+      TravelMind Cúcuta · Proyecto Integrador — Web Semántica & UX Personalizada<br>
+      Datos geoespaciales: OpenStreetMap contributors · Coordenadas: Google Places API
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════ JAVASCRIPT ══════════════ -->
+<script>
+// ════════════════════════════════════════════════════
+// DATOS ESTRUCTURADOS — 12 lugares reales en Cúcuta
+// Coordenadas verificadas vía Google Places API
+// ════════════════════════════════════════════════════
+const PLACES = [
+  {
+    id:1, name:"Catedral de Cúcuta",
+    type:"sitio", cat:"sitio", lat:7.88634, lng:-72.50360,
+    color:"#C9A84C", costLevel:"lo", costRange:"Gratuito", costNum:0,
+    rating:4.7, address:"Av. 5 #10-73, Cúcuta",
+    tourStop:true, isNew:false,
+    priority:{tourist:1,student:3,elder:2,family:2,citizen:3},
+    hours:{es:"Lu–Vi 6:30–18:00 · Do 6:30–13:00",en:"Mon–Fri 6:30–18:00 · Sun 6:30–13:00",fr:"Lun–Ven 6:30–18:00 · Dim 6:30–13:00"},
+    desc:{
+      es:"Catedral histórica de Cúcuta, símbolo arquitectónico y espiritual de la ciudad. Reconstruida tras el terremoto de 1875, es referente cultural obligado para cualquier visitante.",
+      en:"Historic cathedral of Cúcuta, architectural and spiritual landmark rebuilt after the 1875 earthquake. A must-see for any visitor.",
+      fr:"Cathédrale historique de Cúcuta, symbole architectural reconstruite après le séisme de 1875. Incontournable."
+    },
+    reviews:["Hermosa arquitectura colonial, vale mucho la pena visitarla","Lugar espiritual muy tranquilo, ideal para conocer la historia"]
+  },
+  {
+    id:2, name:"Parque Nacional Cúcuta",
+    type:"parque", cat:"parque", lat:7.88846, lng:-72.50258,
+    color:"#4CAF76", costLevel:"lo", costRange:"Gratuito", costNum:0,
+    rating:4.2, address:"Av. 4 #8-18, Cúcuta",
+    tourStop:true, isNew:false,
+    priority:{tourist:2,student:2,elder:1,family:1,citizen:1},
+    hours:{es:"Abierto 24 horas",en:"Open 24 hours",fr:"Ouvert 24h/24"},
+    desc:{
+      es:"Principal parque urbano de Cúcuta. Zonas verdes, senderos peatonales y acceso para sillas de ruedas. Punto de encuentro para deportistas y familias.",
+      en:"Cúcuta's main urban park. Green areas, walking paths and wheelchair access. Meeting point for athletes and families.",
+      fr:"Principal parc urbain de Cúcuta. Espaces verts, sentiers piétons et accès fauteuil roulant."
+    },
+    reviews:["Muy buen parque para trotar en las mañanas","Tranquilo y bien mantenido, ideal para descansar"]
+  },
+  {
+    id:3, name:"Malecón del Pamplonita",
+    type:"sitio", cat:"sitio", lat:7.88582, lng:-72.48995,
+    color:"#C9A84C", costLevel:"lo", costRange:"Gratuito", costNum:0,
+    rating:4.8, address:"Av. Libertadores, Cúcuta",
+    tourStop:true, isNew:false,
+    priority:{tourist:1,student:2,elder:1,family:1,citizen:1},
+    hours:{es:"Siempre abierto · Ciclovía domingos",en:"Always open · Bike path Sundays",fr:"Toujours ouvert · Piste cyclable dimanches"},
+    desc:{
+      es:"Paseo fluvial emblemático de Cúcuta a orillas del Río Pamplonita. Ciclovía dominical, alumbrado navideño, eventos culturales y amplia oferta gastronómica en sus alrededores.",
+      en:"Iconic riverside promenade along the Pamplonita River. Sunday bike path, Christmas lights, cultural events and dining options.",
+      fr:"Promenade emblématique au bord du Pamplonita. Piste cyclable le dimanche, illuminations et gastronomie."
+    },
+    reviews:["El mejor lugar para pasear en Cúcuta, especialmente los domingos","Increíble ambiente familiar, muy recomendado"]
+  },
+  {
+    id:4, name:"Rancho y Leña",
+    type:"restaurante", cat:"restaurante", lat:7.89566, lng:-72.48621,
+    color:"#5B9BD5", costLevel:"mi", costRange:"$25.000–$80.000", costNum:55,
+    rating:4.6, address:"Av. Libertadores, Malecón, Br. Colsag",
+    tourStop:false, isNew:false,
+    priority:{tourist:1,student:3,elder:2,family:1,citizen:2},
+    hours:{es:"Todos los días 11:00–22:00",en:"Every day 11:00–22:00",fr:"Tous les jours 11:00–22:00"},
+    desc:{
+      es:"Uno de los restaurantes más reconocidos de Cúcuta. Carnes a la brasa, costillas BBQ y gastronomía regional en ambiente familiar junto al malecón.",
+      en:"One of Cúcuta's most recognized restaurants. Grilled meats, BBQ ribs and regional cuisine in a family atmosphere by the riverside.",
+      fr:"Restaurant renommé de Cúcuta. Viandes grillées, côtes BBQ et cuisine régionale au bord du fleuve."
+    },
+    reviews:["Excelente carne, la salsa es espectacular","Porciones generosas y buen servicio, muy recomendado"]
+  },
+  {
+    id:5, name:"Restaurante El Balcón Paisa",
+    type:"restaurante", cat:"restaurante", lat:7.89290, lng:-72.48692,
+    color:"#5B9BD5", costLevel:"hi", costRange:"$40.000–$120.000", costNum:80,
+    rating:4.6, address:"Malecón, Av. Libertadores #6-40, Br. Colsag",
+    tourStop:false, isNew:true,
+    priority:{tourist:1,student:4,elder:3,family:2,citizen:3},
+    hours:{es:"Lu–Do 11:30–02:00",en:"Mon–Sun 11:30–02:00",fr:"Lun–Dim 11:30–02:00"},
+    desc:{
+      es:"Restaurante con auténtico ambiente paisa en el Malecón. Música en vivo algunos días, excelente cocina regional y vista al río Pamplonita. Ideal para cenas especiales.",
+      en:"Restaurant with authentic Paisa atmosphere at the Malecón. Live music on some nights, excellent regional cuisine and riverside views. Ideal for special dinners.",
+      fr:"Restaurant avec ambiance paisa authentique. Musique live certains soirs, cuisine régionale et vue sur le fleuve."
+    },
+    reviews:["Ambiente auténtico y muy local, excelente servicio","Porciones enormes y comida deliciosa, perfecta para turistas"]
+  },
+  {
+    id:6, name:"Hospital Erasmo Meoz",
+    type:"hospital", cat:"servicio", lat:7.90399, lng:-72.49106,
+    color:"#D05C72", costLevel:"lo", costRange:"Servicio Público", costNum:0,
+    rating:4.0, address:"Av. 11E No. 5AN-71, Barrio Guaimaral",
+    tourStop:false, isNew:false,
+    priority:{tourist:4,student:4,elder:1,family:2,citizen:2},
+    hours:{es:"24 horas · Urgencias siempre",en:"24 hours · Emergency always open",fr:"24h · Urgences permanentes"},
+    desc:{
+      es:"Principal hospital universitario público de Cúcuta y referente regional de salud en Norte de Santander. Urgencias 24 horas, especialidades médicas completas y servicios de diagnóstico.",
+      en:"Main public university hospital in Cúcuta. 24h emergency, complete medical specialties and diagnostic services.",
+      fr:"Principal hôpital universitaire public de Cúcuta. Urgences 24h, spécialités complètes et services diagnostiques."
+    },
+    reviews:["Buena atención en urgencias","Centro de referencia importante para toda la región"]
+  },
+  {
+    id:7, name:"Clínica San José de Cúcuta",
+    type:"hospital", cat:"servicio", lat:7.88532, lng:-72.49666,
+    color:"#D05C72", costLevel:"mi", costRange:"Atención privada", costNum:50,
+    rating:3.3, address:"Cl. 13 #1e-74, Los Caobos, Cúcuta",
+    tourStop:false, isNew:true,
+    priority:{tourist:4,student:4,elder:1,family:2,citizen:2},
+    hours:{es:"24 horas · Urgencias",en:"24 hours · Emergency",fr:"24h · Urgences"},
+    desc:{
+      es:"Clínica privada en el sector de Los Caobos. Atención de urgencias 24 horas y servicios médicos especializados. Alternativa privada al Hospital Erasmo Meoz.",
+      en:"Private clinic in the Los Caobos sector. 24h emergency care and specialized medical services. Private alternative to Erasmo Meoz Hospital.",
+      fr:"Clinique privée à Los Caobos. Urgences 24h et services médicaux spécialisés."
+    },
+    reviews:["Atención rápida en urgencias","Buenas instalaciones aunque con esperas prolongadas"]
+  },
+  {
+    id:8, name:"Biblioteca Julio Pérez Ferrero",
+    type:"biblioteca", cat:"servicio", lat:7.88512, lng:-72.49952,
+    color:"#9B6DD5", costLevel:"lo", costRange:"Gratuito", costNum:0,
+    rating:4.7, address:"Av. 1 #12-35, Cúcuta",
+    tourStop:true, isNew:false,
+    priority:{tourist:4,student:1,elder:3,family:3,citizen:2},
+    hours:{es:"Lu–Vi 8:00–18:00 · Sa 8:00–14:00",en:"Mon–Fri 8:00–18:00 · Sat 8:00–14:00",fr:"Lun–Ven 8:00–18:00 · Sam 8:00–14:00"},
+    desc:{
+      es:"Biblioteca pública más importante de Norte de Santander, declarada Patrimonio Cultural Nacional. Wi-Fi gratuito, salas de estudio, colecciones digitales y Feria del Libro anual.",
+      en:"Most important public library in Norte de Santander, declared National Cultural Heritage. Free Wi-Fi, study rooms, digital collections and annual Book Fair.",
+      fr:"Bibliothèque publique la plus importante du Norte de Santander, patrimoine culturel national. Wi-Fi gratuit, salles d'étude."
+    },
+    reviews:["Espacio cultural excelente para estudiar","Gran variedad de recursos y muy bien organizada"]
+  },
+  {
+    id:9, name:"Éxito Avenida Quinta",
+    type:"supermercado", cat:"servicio", lat:7.88504, lng:-72.50361,
+    color:"#D58B3A", costLevel:"lo", costRange:"Variable", costNum:20,
+    rating:4.3, address:"Av. 5 Calle 12-68, Cúcuta",
+    tourStop:false, isNew:false,
+    priority:{tourist:3,student:2,elder:2,family:1,citizen:1},
+    hours:{es:"Lu–Do 8:00–20:30",en:"Mon–Sun 8:00–20:30",fr:"Lun–Dim 8:00–20:30"},
+    desc:{
+      es:"Supermercado Éxito en la Avenida Quinta, uno de los más accesibles del centro de Cúcuta. Amplia variedad de productos nacionales e importados a buenos precios.",
+      en:"Éxito supermarket on Avenida Quinta, one of the most accessible in central Cúcuta. Wide variety of national and imported products at good prices.",
+      fr:"Supermarché Éxito sur l'Avenida Quinta. Large choix de produits nationaux et importés à bons prix."
+    },
+    reviews:["Buenos precios y variedad de productos","Cómodo y bien ubicado en el centro"]
+  },
+  {
+    id:10, name:"Centro Comercial Ventura Plaza",
+    type:"supermercado", cat:"servicio", lat:7.88853, lng:-72.49660,
+    color:"#D58B3A", costLevel:"mi", costRange:"Variable", costNum:40,
+    rating:4.6, address:"Calle 10–11, Sector Quinta Vélez, Cúcuta",
+    tourStop:false, isNew:false,
+    priority:{tourist:3,student:2,elder:2,family:1,citizen:1},
+    hours:{es:"Lu–Do 10:00–22:00",en:"Mon–Sun 10:00–22:00",fr:"Lun–Dim 10:00–22:00"},
+    desc:{
+      es:"El centro comercial más grande de Cúcuta: tres niveles con tiendas nacionales e internacionales, cine, supermercado, zona de comidas y cambio de divisas. Referente comercial de la ciudad.",
+      en:"Cúcuta's largest shopping mall: three floors with national and international stores, cinema, supermarket, food court and currency exchange.",
+      fr:"Le plus grand centre commercial de Cúcuta. Boutiques, cinéma, supermarché, restauration et change de devises."
+    },
+    reviews:["Excelente variedad, muy limpio y organizado","El mejor mall de Cúcuta, ideal para compras y entretenimiento"]
+  },
+  {
+    id:11, name:"Circus Pop",
+    type:"sitio", cat:"sitio", lat:7.89058, lng:-72.48830,
+    color:"#C9A84C", costLevel:"lo", costRange:"$20.000–$30.000", costNum:25,
+    rating:4.4, address:"Calle 8a11e 53, Libertadores, Malecón, Cúcuta",
+    tourStop:true, isNew:true,
+    priority:{tourist:2,student:2,elder:4,family:1,citizen:2},
+    hours:{es:"Lu–Do 11:00–23:00",en:"Mon–Sun 11:00–23:00",fr:"Lun–Dim 11:00–23:00"},
+    desc:{
+      es:"Centro de entretenimiento familiar en el Malecón con juegos, trampolín, zona de videojuegos y patio de comidas. Los martes hay 2x1 en atracciones. Muy popular entre familias.",
+      en:"Family entertainment center at the Malecón with games, trampolines, video games and food court. Tuesdays are 2-for-1. Very popular with families.",
+      fr:"Centre de loisirs familial au Malecón: jeux, trampolines, jeux vidéo et restauration. Mardis 2 pour 1."
+    },
+    reviews:["Perfecto para niños, gran ambiente familiar","Los martes son ideales por el 2x1, muy recomendado"]
+  },
+  {
+    id:12, name:"Universidad de Santander",
+    type:"biblioteca", cat:"servicio", lat:7.91101, lng:-72.49936,
+    color:"#9B6DD5", costLevel:"mi", costRange:"Carreras desde $800.000/sem", costNum:45,
+    rating:4.6, address:"Av. 4 #11N-32, Urbanización El Bosque, Cúcuta",
+    tourStop:false, isNew:true,
+    priority:{tourist:5,student:1,elder:4,family:4,citizen:2},
+    hours:{es:"Lu–Vi 8:00–12:00 · 14:00–19:00",en:"Mon–Fri 8:00–12:00 · 14:00–19:00",fr:"Lun–Ven 8:00–12:00 · 14:00–19:00"},
+    desc:{
+      es:"Universidad de Santander sede Cúcuta. Instalaciones modernas, laboratorios, biblioteca con recursos digitales, Wi-Fi, parqueadero y aulas climatizadas. Programas de pregrado y posgrado.",
+      en:"University of Santander Cúcuta campus. Modern facilities, labs, digital library, Wi-Fi, parking and air-conditioned classrooms. Undergraduate and graduate programs.",
+      fr:"Université de Santander campus Cúcuta. Installations modernes, bibliothèque numérique, Wi-Fi et programmes d'études."
+    },
+    reviews:["Excelentes instalaciones y muy buena atención","Universidad bien equipada con buen ambiente académico"]
+  }
+];
+
+// ════════════════════════════════════════
+// PROFILES & LABELS
+// ════════════════════════════════════════
+const PROFILES = {
+  tourist:{name:"Ana García",role:"Turista · 28 años",letter:"A",sub:"Experiencias y atracciones para viajeros"},
+  student:{name:"Carlos Ruiz",role:"Estudiante · 20 años",letter:"C",sub:"Recursos educativos y bajo costo"},
+  elder:{name:"Don Hernando",role:"Adulto Mayor · 68 años",letter:"H",sub:"Accesibilidad y servicios prioritarios"},
+  family:{name:"Familia López",role:"Familia · viajeros",letter:"F",sub:"Actividades para todas las edades"},
+  citizen:{name:"Lucía Vargas",role:"Ciudadana · 35 años",letter:"L",sub:"Servicios y recursos cotidianos"}
+};
+
+const L10N = {
+  es:{all:"Todos",sitio:"Sitios",restaurante:"Restaurantes",parque:"Parques",servicio:"Servicios",name:"Español",rating:"Calificación",hrs:"Horario",cost:"Costo",addr:"Dirección",markVisited:"Marcar visitado",visited:"✓ Visitado",route:"Cómo llegar",share:"Compartir"},
+  en:{all:"All",sitio:"Sites",restaurante:"Restaurants",parque:"Parks",servicio:"Services",name:"English",rating:"Rating",hrs:"Hours",cost:"Cost",addr:"Address",markVisited:"Mark visited",visited:"✓ Visited",route:"Get directions",share:"Share"},
+  fr:{all:"Tous",sitio:"Sites",restaurante:"Restaurants",parque:"Parcs",servicio:"Services",name:"Français",rating:"Évaluation",hrs:"Horaires",cost:"Coût",addr:"Adresse",markVisited:"Marquer visité",visited:"✓ Visité",route:"Itinéraire",share:"Partager"}
+};
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+const S = {
+  userType:"tourist", lang:"es", budget:100,
+  cat:"all", selId:null, sort:"priority",
+  query:"", visited:new Set(), tourActive:false, tourIdx:0
+};
+
+// Tour stops (place IDs in order)
+const TOUR_IDS = PLACES.filter(p=>p.tourStop).map(p=>p.id);
+
+// ════════════════════════════════════════
+// MAP — Leaflet + OpenStreetMap
+// ════════════════════════════════════════
+const map = L.map("map",{zoomControl:false,attributionControl:true}).setView([7.889,-72.497],14);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+  attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a>',maxZoom:19
+}).addTo(map);
+L.control.zoom({position:"bottomright"}).addTo(map);
+
+const markerMap = {};
+
+function makeIcon(color, selected=false, visited=false) {
+  const s = selected?36:28;
+  const ring = selected?`<circle cx="15" cy="15" r="13" fill="none" stroke="${color}" stroke-width="2" opacity=".4"/>`:``; 
+  const check = visited?`<text x="15" y="14" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="white" font-weight="bold">✓</text>`:``;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s+6}" viewBox="0 0 30 36">
+    <defs><filter id="d${color.replace('#','')}"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,.5)"/></filter></defs>
+    ${ring}
+    <circle cx="15" cy="14" r="${selected?12:10}" fill="${color}" stroke="rgba(255,255,255,${selected?'.9':'.6'})" stroke-width="${selected?2.5:2}" filter="url(#d${color.replace('#','')})"/>
+    ${check}
+    <path d="M15 26 L11 18 Q15 13 19 18Z" fill="${color}"/>
+  </svg>`;
+  return L.divIcon({html:`<div style="transform:translate(-50%,-100%)">${svg}</div>`,iconSize:[s,s+6],iconAnchor:[s/2,s+6],className:""});
+}
+
+function typeEmoji(t){return{parque:"🌿",sitio:"🏛️",restaurante:"🍽️",hospital:"🏥",biblioteca:"📚",supermercado:"🛒",colegio:"🎓"}[t]||"📍"}
+
+function buildPopup(p){
+  const LL=L10N[S.lang];
+  const isSel=S.selId===p.id;
+  const isVis=S.visited.has(p.id);
+  return `<div class="pop">
+    <div class="pop-badges">
+      <span class="pop-badge" style="background:${p.color}22;color:${p.color}">${p.type}</span>
+      ${p.isNew?`<span class="pop-badge" style="background:rgba(58,191,191,.15);color:#3ABFBF">NUEVO</span>`:""}
+      ${isVis?`<span class="pop-badge" style="background:rgba(76,175,118,.15);color:#4CAF76">VISITADO ✓</span>`:""}
+    </div>
+    <div class="pop-name">${p.name}</div>
+    <div class="pop-addr">📍 ${p.address}</div>
+    <div class="pop-desc">${p.desc[S.lang]}</div>
+    <div class="pop-grid">
+      <div class="pop-cell"><div class="pop-cell-l">${LL.rating}</div><div class="pop-cell-v">⭐ ${p.rating}/5</div></div>
+      <div class="pop-cell"><div class="pop-cell-l">${LL.hrs}</div><div class="pop-cell-v">${p.hours[S.lang]}</div></div>
+      <div class="pop-cell" style="grid-column:1/-1"><div class="pop-cell-l">Coordenadas GPS</div><div class="pop-cell-v" style="font-family:monospace;font-size:10px">${p.lat.toFixed(5)}°N, ${Math.abs(p.lng).toFixed(5)}°W</div></div>
+    </div>
+    <div class="pop-cost ${p.costLevel}">${LL.cost}: ${p.costRange}</div>
+    <div class="pop-actions">
+      <button class="pop-btn vis-btn ${isVis?'done':''}" onclick="markVisited(${p.id})">${isVis?LL.visited:LL.markVisited}</button>
+      <button class="pop-btn" onclick="openDirections(${p.lat},${p.lng})">${LL.route}</button>
+    </div>
+    ${p.reviews&&p.reviews.length?`<div class="pop-reviews"><div class="rev-title">Reseñas destacadas</div>${p.reviews.slice(0,2).map(r=>`<div class="rev-item">"${r.substring(0,80)}${r.length>80?"...":""}"</div>`).join("")}</div>`:""}
+  </div>`;
+}
+
+function initMarkers(){
+  PLACES.forEach(p=>{
+    const m=L.marker([p.lat,p.lng],{icon:makeIcon(p.color)}).addTo(map);
+    m.bindPopup(buildPopup(p),{maxWidth:310,className:""});
+    m.on("click",()=>selectPlace(p.id));
+    markerMap[p.id]=m;
+  });
+}
+
+// ════════════════════════════════════════
+// SELECT PLACE
+// ════════════════════════════════════════
+function selectPlace(id){
+  const prev=S.selId;
+  S.selId=id;
+  const p=PLACES.find(x=>x.id===id);
+
+  // Update icons
+  if(prev) markerMap[prev]?.setIcon(makeIcon(PLACES.find(x=>x.id===prev).color,false,S.visited.has(prev)));
+  markerMap[id].setIcon(makeIcon(p.color,true,S.visited.has(id)));
+
+  map.flyTo([p.lat,p.lng],16,{duration:.8});
+  setTimeout(()=>markerMap[id].openPopup(),500);
+
+  // Sidebar
+  document.querySelectorAll(".pitem").forEach(el=>el.classList.remove("sel"));
+  const si=document.getElementById("pi"+id);
+  if(si){si.classList.add("sel");si.scrollIntoView({block:"nearest",behavior:"smooth"});}
+
+  toast(`📍 ${p.name}`);
+}
+
+// ════════════════════════════════════════
+// VISITED / PROGRESS
+// ════════════════════════════════════════
+function markVisited(id){
+  if(S.visited.has(id)) S.visited.delete(id);
+  else S.visited.add(id);
+  
+  const p=PLACES.find(x=>x.id===id);
+  markerMap[id].setIcon(makeIcon(p.color,S.selId===id,S.visited.has(id)));
+  markerMap[id].setPopupContent(buildPopup(p));
+
+  updateProgress();
+  renderSidebar();
+  toast(S.visited.has(id)?`✅ ${p.name} marcado como visitado`:`🔲 ${p.name} desmarcado`);
+}
+
+function updateProgress(){
+  const vis=S.visited.size;
+  const total=PLACES.length;
+  const pct=Math.round(vis/total*100);
+  document.getElementById("visitedCount").textContent=vis;
+  document.getElementById("visPct").textContent=pct+"%";
+  document.getElementById("visFill").style.width=pct+"%";
+}
+
+function openDirections(lat,lng){
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, "_blank");
+}
+
+// ════════════════════════════════════════
+// TOUR GUIADO
+// ════════════════════════════════════════
+function toggleTour(){
+  S.tourActive=!S.tourActive;
+  S.tourIdx=0;
+  document.getElementById("tourBtn").classList.toggle("active",S.tourActive);
+  document.getElementById("tourBar").classList.toggle("visible",S.tourActive);
+  if(S.tourActive){
+    toast("🗺️ Tour iniciado — siguiendo los mejores sitios de Cúcuta");
+    showTourStop();
+  } else {
+    toast("Tour finalizado");
+  }
+}
+
+function showTourStop(){
+  const id=TOUR_IDS[S.tourIdx];
+  const p=PLACES.find(x=>x.id===id);
+  document.getElementById("tourNum").textContent=`Parada ${S.tourIdx+1} / ${TOUR_IDS.length}`;
+  document.getElementById("tourName").textContent=p.name;
+  selectPlace(id);
+}
+
+function tourNext(){
+  S.tourIdx=(S.tourIdx+1)%TOUR_IDS.length;
+  showTourStop();
+  if(S.tourIdx===0) toast("🏁 Tour completado — ¡volviendo al inicio!");
+}
+
+// ════════════════════════════════════════
+// SIDEBAR
+// ════════════════════════════════════════
+function renderSidebar(){
+  const LL=L10N[S.lang];
+
+  // Cats
+  document.getElementById("cats").innerHTML=[
+    ["all",LL.all],["sitio",LL.sitio],["restaurante",LL.restaurante],
+    ["parque",LL.parque],["servicio",LL.servicio]
+  ].map(([k,v])=>`<button class="cat${S.cat===k?" on":""}" onclick="filterCat('${k}')">${v}</button>`).join("");
+
+  // Filter + sort
+  let list=[...PLACES];
+
+  // Search filter
+  if(S.query){
+    const q=S.query.toLowerCase();
+    list=list.filter(p=>p.name.toLowerCase().includes(q)||p.type.toLowerCase().includes(q)||p.address.toLowerCase().includes(q));
+  }
+
+  // Sort
+  if(S.sort==="priority") list.sort((a,b)=>(a.priority[S.userType]||9)-(b.priority[S.userType]||9));
+  else if(S.sort==="rating") list.sort((a,b)=>b.rating-a.rating);
+  else if(S.sort==="cost") list.sort((a,b)=>a.costNum-b.costNum);
+
+  const catOk=p=>S.cat==="all"||p.cat===S.cat;
+  const budgetOk=p=>p.costNum<=S.budget*0.55+20||p.costLevel==="lo";
+
+  let visible=0;
+  document.getElementById("plist").innerHTML=list.map(p=>{
+    const dim=(!catOk(p)||!budgetOk(p))?" dim":"";
+    if(!dim) visible++;
+    const sel=S.selId===p.id?" sel":"";
+    const vis=S.visited.has(p.id)?" visited":"";
+    return `<div class="pitem${sel}${dim}${vis}" id="pi${p.id}" onclick="selectPlace(${p.id})">
+      <div class="pi-ico" style="background:${p.color}22;color:${p.color}">${typeEmoji(p.type)}${S.visited.has(p.id)?`<span style="position:absolute;bottom:-2px;right:-2px;background:var(--green);color:#fff;font-size:7px;width:11px;height:11px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700">✓</span>`:""}
+      </div>
+      <div class="pi-info">
+        <div class="pi-name">${p.name}</div>
+        <div class="pi-type">${p.type}</div>
+        <div class="pi-tags">
+          <span class="tag ${p.costLevel}">${p.costRange}</span>
+          <span class="tag">⭐ ${p.rating}</span>
+          ${p.isNew?`<span class="tag new">NUEVO</span>`:""}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("visibleCount").textContent=visible;
+  updateProgress();
+}
+
+// ════════════════════════════════════════
+// PERSONALIZATION
+// ════════════════════════════════════════
+function personalize(){
+  S.userType=document.getElementById("selUser").value;
+  S.lang=document.getElementById("selLang").value;
+
+  const prof=PROFILES[S.userType];
+  document.getElementById("ua").textContent=prof.letter;
+  document.getElementById("un").textContent=prof.name;
+  document.getElementById("ur").textContent=prof.role;
+  document.getElementById("sbsub").textContent=prof.sub;
+
+  const uLabels={tourist:"Turista",student:"Estudiante",elder:"Adulto Mayor",family:"Familia",citizen:"Ciudadano"};
+  document.getElementById("pU").textContent=`${prof.name} (${uLabels[S.userType]})`;
+  document.getElementById("pL").textContent=L10N[S.lang].name;
+
+  // Refresh all popups with new language
+  PLACES.forEach(p=>markerMap[p.id]?.setPopupContent(buildPopup(p)));
+
+  // Marker visual priority (opacity)
+  PLACES.forEach(p=>{
+    const prio=p.priority[S.userType]||5;
+    markerMap[p.id].getElement()&&(markerMap[p.id].getElement().style.opacity=prio<=2?"1":prio===3?".8":".5");
+  });
+
+  updateMarkerVisibility();
+  renderSidebar();
+}
+
+function onBudget(val){
+  S.budget=parseInt(val);
+  document.getElementById("slBudget").style.setProperty("--pct",val+"%");
+  const lbl=val==100?"Sin límite":val<20?"< $10k":val<40?"< $25k":val<60?"< $50k":"< $80k";
+  document.getElementById("bval").textContent=lbl;
+  document.getElementById("pB").textContent=lbl;
+  updateMarkerVisibility();
+  renderSidebar();
+}
+
+function updateMarkerVisibility(){
+  PLACES.forEach(p=>{
+    const show=(p.costNum<=S.budget*0.55+20||p.costLevel==="lo")&&(S.cat==="all"||p.cat===S.cat);
+    if(show){if(!map.hasLayer(markerMap[p.id]))markerMap[p.id].addTo(map);}
+    else{if(map.hasLayer(markerMap[p.id]))map.removeLayer(markerMap[p.id]);}
+  });
+}
+
+function filterCat(cat){
+  S.cat=cat;S.selId=null;
+  updateMarkerVisibility();
+  renderSidebar();
+}
+
+function doSearch(q){
+  S.query=q.trim();
+  renderSidebar();
+}
+
+function setSort(s){
+  S.sort=s;
+  ["priority","rating","cost"].forEach(k=>document.getElementById("sort-"+k).classList.toggle("on",k===s));
+  renderSidebar();
+}
+
+// ════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════
+let toastT;
+function toast(msg){
+  clearTimeout(toastT);
+  const el=document.getElementById("toast");
+  el.textContent=msg;el.classList.add("on");
+  toastT=setTimeout(()=>el.classList.remove("on"),2400);
+}
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+initMarkers();
+renderSidebar();
+
+// Close popup clicking on map bg
+map.on("click",()=>{
+  if(S.selId){
+    const p=PLACES.find(x=>x.id===S.selId);
+    markerMap[S.selId]?.setIcon(makeIcon(p.color,false,S.visited.has(S.selId)));
+    S.selId=null;
+    renderSidebar();
+  }
+});
+</script>
+</body>
+</html>
